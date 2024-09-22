@@ -6,6 +6,7 @@ edition = "2021"
 keywords = ["import", "formatter", "typescript", "javascript"]
 license = "MPL-2.0"
 description = "TypeScript and JavaScript import organizer."
+repository = "https://github.com/crate-ci/cargo-release"
 
 [lib]
 crate-type = ["lib", "cdylib"]
