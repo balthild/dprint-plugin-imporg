@@ -1,0 +1,30 @@
+name: Release on Tags
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Toolchain
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Build
+      run: cargo +nightly build --target=wasm32-unknown-unknown --release
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ./target/wasm32-unknown-unknown/release/dprint_plugin_imporg.wasm
