@@ -9,7 +9,7 @@ This plugin must be used together with the typescript plugin and listed before i
 ```jsonc
 {
   "plugins": [
-    "https://github.com/balthild/dprint-plugin-imporg/releases/download/0.1.2/dprint_plugin_imporg.wasm",
+    "https://github.com/balthild/dprint-plugin-imporg/releases/download/0.1.3/dprint_plugin_imporg.wasm",
     "https://plugins.dprint.dev/typescript-0.93.0.wasm"
   ]
 }

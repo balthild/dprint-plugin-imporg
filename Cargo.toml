@@ -2,7 +2,7 @@ cargo-features = ["profile-rustflags"]
 
 [package]
 name = "dprint-plugin-imporg"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Balthild <ibalthild@gmail.com>"]
 edition = "2021"
 keywords = ["import", "formatter", "typescript", "javascript"]
