@@ -1,0 +1,21 @@
+[package]
+name = "dprint-plugin-imporg"
+version = "0.1.0"
+authors = ["Balthild <ibalthild@gmail.com>"]
+edition = "2021"
+keywords = ["import", "formatter", "typescript", "javascript"]
+license = "MPL-2.0"
+description = "TypeScript and JavaScript import organizer."
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+anyhow = "1.0.89"
+dprint-core = { version = "0.67.1", features = ["wasm"] }
+oxc = "0.29.0"
+regex = "1.10.6"
+ropey = "1.6.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+serde_path_to_error = "0.1.16"
