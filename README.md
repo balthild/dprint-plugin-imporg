@@ -20,9 +20,12 @@ This plugin must be used together with the typescript plugin and listed before i
 ```jsonc
 {
   "imporg": {
-    // The regex patterns which will be matched by the <alias> rule.
+    // The regex patterns for the <alias> rule.
     // Default: ["^[@~]/"]
     "aliases": ["^@/", "^virtual:"],
+
+    // Groups are matched in order. If an import statement could be matched by two groups, it will
+    // be placed in the one appears first in the config.
     "groups": [
       // Defaults
       { "include": ["<effect>"] },
@@ -34,9 +37,11 @@ This plugin must be used together with the typescript plugin and listed before i
       // Custom
       {
         // Regex patterns or special rules. See above the defaults for examples of special rules.
-        // The import statements matching `incluce` but not `exclude` will be placed in this group.
-        "include": [],
-        "exclude": []
+        // The import statements matching `incluce` but not `exclude` will be placed in the group.
+        // For example, this group will exclude "@components/Sidebar.tsx", even though the <npm>
+        // rule matches it.
+        "include": ["<npm>"],
+        "exclude": ["^@(pages|components|hooks)/"]
       }
     ]
   }
