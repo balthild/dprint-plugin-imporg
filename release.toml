@@ -1,1 +1,6 @@
 tag-name = "{{prefix}}{{version}}"
+
+[[pre-release-replacements]]
+file = "README.md"
+search = "/releases/download/[0-9.\\-]+/dprint_plugin_imporg.wasm"
+replace = "/releases/download/{{version}}/dprint_plugin_imporg.wasm"
