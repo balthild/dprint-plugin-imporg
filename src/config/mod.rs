@@ -60,7 +60,10 @@ fn get_default_groups() -> Vec<ImportGroup> {
 }
 
 pub fn resolve_config(raw: &mut ConfigKeyMap) -> Result<Configuration, ConfigurationDiagnostic> {
-    let json = serde_json::to_value(raw).unwrap();
+    let json = serde_json::to_value(&raw).unwrap();
+
+    raw.swap_remove("aliases");
+    raw.swap_remove("groups");
 
     let mut config: Configuration = match serde_path_to_error::deserialize(json) {
         Ok(it) => it,
@@ -80,5 +83,5 @@ pub fn resolve_config(raw: &mut ConfigKeyMap) -> Result<Configuration, Configura
         config.groups = get_default_groups();
     }
 
-    Ok(dbg!(config))
+    Ok(config)
 }

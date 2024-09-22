@@ -46,9 +46,6 @@ impl SyncPluginHandler<Configuration> for ImporgHandler {
             }
         };
 
-        raw.swap_remove("aliases");
-        raw.swap_remove("groups");
-
         diagnostics.extend(get_unknown_property_diagnostics(raw));
 
         PluginResolveConfigurationResult {
