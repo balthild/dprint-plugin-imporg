@@ -1,3 +1,5 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "dprint-plugin-imporg"
 version = "0.1.2"
@@ -10,6 +12,13 @@ repository = "https://github.com/balthild/dprint-plugin-imporg"
 
 [lib]
 crate-type = ["lib", "cdylib"]
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
+codegen-units = 1
+rustflags = ["-Zlocation-detail=none"]
 
 [dependencies]
 anyhow = "1.0.89"
