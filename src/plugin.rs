@@ -21,9 +21,11 @@ impl SyncPluginHandler<Configuration> for ImporgHandler {
             name: env!("CARGO_PKG_NAME").to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             config_key: "imporg".to_string(),
-            help_url: "https://github.com/balthild/dprint-plugin-imporg".to_string(),
-            config_schema_url: "".to_string(), // leave this empty for now
-            update_url: None,                  // leave this empty for now
+            help_url: env!("CARGO_PKG_REPOSITORY").to_string(),
+            config_schema_url: "".to_string(),
+            update_url: Some(
+                "https://plugins.dprint.dev/balthild/dprint-plugin-imporg/latest.json".to_string(),
+            ),
         }
     }
 

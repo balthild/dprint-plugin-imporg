@@ -9,7 +9,7 @@ This plugin must be used together with the typescript plugin and listed before i
 ```jsonc
 {
   "plugins": [
-    "https://github.com/balthild/dprint-plugin-imporg/releases/download/0.1.3/dprint_plugin_imporg.wasm",
+    "https://plugins.dprint.dev/balthild/imporg-0.1.3.wasm",
     "https://plugins.dprint.dev/typescript-0.93.0.wasm"
   ]
 }
@@ -20,7 +20,7 @@ This plugin must be used together with the typescript plugin and listed before i
 ```jsonc
 {
   "imporg": {
-    // The regex patterns for the <alias> rule.
+    // The regex patterns that will be included by <alias> rule and excluded by <npm> rule.
     // Default: ["^[@~]/"]
     "aliases": ["^@/", "^virtual:"],
 
@@ -36,12 +36,12 @@ This plugin must be used together with the typescript plugin and listed before i
 
       // Custom
       {
-        // Regex patterns or special rules. See above the defaults for examples of special rules.
-        // The import statements matching `incluce` but not `exclude` will be placed in the group.
-        // For example, this group will exclude "@components/Sidebar.tsx", even though the <npm>
-        // rule matches it.
+        // Regex patterns or predefined rules (see the defaults above for examples).
+        // Only the statements matched by `include` but not `exclude` will be placed in the group.
+        // For example, this group will exclude "@balthild/a_momorepo_package" although <npm> rule
+        // matches it.
         "include": ["<npm>"],
-        "exclude": ["^@(pages|components|hooks)/"]
+        "exclude": ["^@balthild/"]
       }
     ]
   }

@@ -11,6 +11,7 @@ description = "TypeScript and JavaScript import organizer."
 repository = "https://github.com/balthild/dprint-plugin-imporg"
 
 [lib]
+name = "plugin"
 crate-type = ["lib", "cdylib"]
 
 [profile.release]
