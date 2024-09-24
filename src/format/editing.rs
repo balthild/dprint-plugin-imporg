@@ -4,8 +4,6 @@ use anyhow::{bail, Ok, Result};
 use oxc::span::Span;
 use ropey::Rope;
 
-use crate::re;
-
 pub struct ChangedSpan {
     pub pos: u32,
     pub len: i64,
@@ -52,7 +50,7 @@ pub fn remove_span(rope: &mut Rope, span: Span) -> ChangedSpan {
     // Remove the entire line if it has became empty
     let line = rope.char_to_line(start);
     let line_content: Cow<str> = rope.line(line).into();
-    if re!(r"^\s*$").is_match(&line_content) {
+    if line_content.chars().all(char::is_whitespace) {
         let line_start = rope.line_to_byte(line);
         let line_end = rope.line_to_byte(line + 1);
         removed = ChangedSpan {
