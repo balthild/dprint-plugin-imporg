@@ -148,6 +148,8 @@ impl<'a> Formatter<'a> {
             .map(|c| c.span.start)
             .unwrap_or(first.span().start);
 
+        // If the last line of preamable is empty, shrink it to the line start and treat this line as body.
+        // Needing this because `remove_span` may remove an entire line.
         let end_line = self.rope.byte_to_line(end as usize);
         let end_line_start = self.rope.line_to_byte(end_line);
         let end_line_content = &self.src[end_line_start..end as usize];

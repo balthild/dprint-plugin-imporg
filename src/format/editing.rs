@@ -49,7 +49,7 @@ pub fn remove_span(rope: &mut Rope, span: Span) -> ChangedSpan {
     // Remove the statement from the rope
     rope.remove(start..end);
 
-    // Remove the line end if it has became empty
+    // Remove the entire line if it has became empty
     let line = rope.char_to_line(start);
     let line_content: Cow<str> = rope.line(line).into();
     if re!(r"^\s*$").is_match(&line_content) {
