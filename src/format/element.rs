@@ -15,11 +15,9 @@ pub struct CommentElement {
 
 impl CommentElement {
     pub fn from_ast(rope: &Rope, comment: &Comment) -> Self {
-        let span = Span::new(comment.real_span_start(), comment.real_span_end());
-        Self {
-            span,
-            lines: LineSpan::find(rope, span),
-        }
+        let span = comment.real_span();
+        let lines = LineSpan::find(rope, span);
+        Self { span, lines }
     }
 }
 

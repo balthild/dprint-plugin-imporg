@@ -85,23 +85,25 @@ impl<'a> Formatter<'a> {
 
             let mut comments_before = self.get_comments(last_end, span.start);
 
-            if let Statement::ImportDeclaration(decl) = statement {
-                let comments = self.pull_related_comments(&mut comments_before, statement);
+            match statement {
+                Statement::ImportDeclaration(decl) => {
+                    let comments = self.pull_related_comments(&mut comments_before, statement);
 
-                parts.imports.push_back(ImportElement {
-                    span,
-                    comments,
-                    decl,
-                });
+                    parts.imports.push_back(ImportElement {
+                        span,
+                        comments,
+                        decl,
+                    });
+                }
+                Statement::TSModuleDeclaration(decl) => {
+                    if let Some(element) = ModuleElement::from_ast(decl) {
+                        parts.submodules.push(element);
+                    };
+                }
+                _ => {}
             }
 
             parts.comments.extend(comments_before);
-
-            if let Statement::TSModuleDeclaration(ref decl) = statement {
-                if let Some(element) = ModuleElement::from_ast(decl) {
-                    parts.submodules.push(element);
-                };
-            }
 
             last_end = span.end;
         }

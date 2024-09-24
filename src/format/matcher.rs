@@ -1,9 +1,8 @@
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-use regex::Regex;
-
 use crate::config::{Configuration, CustomRule, ImportGroup, Rule, RuleSet};
+use crate::re;
 
 use super::ImportElement;
 
@@ -145,13 +144,11 @@ impl<'a> Matcher<'a> {
     }
 
     fn matches_npm(&self, element: &ImportElement<'a>) -> bool {
-        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^@?[0-9A-Za-z\-]").unwrap());
-
         if self.matches_alias(element) {
             return false;
         }
 
-        RE.is_match(element.module())
+        re!(r"^@?[0-9A-Za-z\-]").is_match(element.module())
     }
 
     fn matches_custom(&self, custom: &CustomRule, element: &ImportElement<'a>) -> bool {
