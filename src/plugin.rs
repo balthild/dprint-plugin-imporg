@@ -84,24 +84,23 @@ impl SyncPluginHandler<Configuration> for ImporgHandler {
             None => &request.file_bytes,
         };
 
+        let source = std::str::from_utf8(source)?;
+
         let mut output = format_source(request.config, request.file_path, source)?;
         let mut output_range = None;
 
         if let Some(range) = request.range {
-            let formatted = output;
+            let formatted_len = output.len_bytes();
+            output_range = Some(range.start..(range.start + formatted_len));
 
-            output_range = Some(range.start..(range.start + formatted.len()));
-
-            output = Vec::with_capacity(request.file_bytes.len() - range.len() + formatted.len());
-            output.extend_from_slice(&request.file_bytes[0..range.start]);
-            output.extend(formatted);
-            output.extend_from_slice(&request.file_bytes[range.end..]);
+            output.insert(0, &source[..range.start]);
+            output.insert(output.len_chars(), &source[range.end..]);
         };
 
         format_with_host(SyncHostFormatRequest {
             // Imporg does not format CommonJS files, so this avoids infinite recursion.
             file_path: Path::new("dummy.cts"),
-            file_bytes: &output,
+            file_bytes: output.to_string().as_bytes(),
             range: output_range,
             override_config: &ConfigKeyMap::from([(
                 "module.sortImportDeclarations".to_string(),

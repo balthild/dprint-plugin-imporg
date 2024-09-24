@@ -4,6 +4,7 @@ use std::io::Write;
 use dprint_core::plugins::wasm::WasiPrintFd;
 
 #[allow(unused)]
+#[deprecated = "for debug use only"]
 pub fn debug_print<T: Debug>(value: T) -> T {
     let formatted = format!("{:#?}", value);
     let _ = WasiPrintFd(2).write_all(formatted.as_bytes());
@@ -11,6 +12,7 @@ pub fn debug_print<T: Debug>(value: T) -> T {
 }
 
 #[allow(unused)]
+#[deprecated = "for debug use only"]
 pub fn log(message: &str) {
     let _ = WasiPrintFd(1).write_all(message.as_bytes());
 }

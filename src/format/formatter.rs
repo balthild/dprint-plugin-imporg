@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::collections::LinkedList;
 
 use anyhow::{Ok, Result};
@@ -8,9 +7,16 @@ use oxc::span::{GetSpan, Span};
 use ropey::Rope;
 
 use crate::config::Configuration;
-use crate::re;
 
-use super::{ImportElement, LineSpan, Matcher, OtherElement, ProgramParts};
+use super::{
+    remove_span, ChangedSpan, CommentElement, ImportElement, LineSpan, Matcher, ModuleElement,
+    ProgramParts,
+};
+
+pub struct FormatterReturn {
+    pub output: Rope,
+    pub submodules: Vec<Span>,
+}
 
 pub struct Formatter<'a> {
     pub config: &'a Configuration,
@@ -20,52 +26,62 @@ pub struct Formatter<'a> {
 }
 
 impl<'a> Formatter<'a> {
-    pub fn format(self) -> Result<String> {
-        let parts = self.extract_imports();
+    pub fn format(self) -> Result<FormatterReturn> {
+        let parts = self.extract_parts();
 
+        let mut submodules: Vec<_> = parts.submodules.into_iter().map(|m| m.body).collect();
         let mut output = self.rope.clone();
 
         // Remove from bottom to top so that indexing will not be a mess
         for element in parts.imports.iter().rev() {
-            remove_span(&mut output, element.span);
+            let removed = remove_span(&mut output, element.span);
+            removed.update_spans(&mut submodules)?;
 
             for comment in element.comments.iter().rev() {
-                remove_span(&mut output, comment.span);
+                let removed = remove_span(&mut output, comment.span);
+                removed.update_spans(&mut submodules)?;
             }
         }
 
         let groups = self.organize(parts.imports);
 
+        // Insert imports after preamable and before those previously inserted
         let pos = self.rope.byte_to_char(parts.preamable.end as usize);
+        let mut inserted = ChangedSpan::empty(parts.preamable.end);
         for group in groups.iter().rev() {
             output.insert(pos, "\n");
+            inserted.len += 1;
+
             for element in group.iter().rev() {
-                // Insert the element after preamable and before the elements previously inserted
                 output.insert(pos, "\n");
                 output.insert(pos, element.span.source_text(self.src));
+                inserted.len += element.span.size() as i64 + 1;
 
                 for comment in element.comments.iter().rev() {
                     output.insert(pos, "\n");
                     output.insert(pos, comment.span.source_text(self.src));
+                    inserted.len += comment.span.size() as i64 + 1;
                 }
             }
         }
 
-        Ok(output.to_string())
+        inserted.update_spans(&mut submodules)?;
+
+        Ok(FormatterReturn { output, submodules })
     }
 
-    pub fn extract_imports(&'a self) -> ProgramParts<'a> {
+    pub fn extract_parts(&'a self) -> ProgramParts<'a> {
         let mut parts = ProgramParts {
             preamable: self.get_preamable_span(),
             imports: LinkedList::new(),
-            body: Vec::with_capacity(self.ast.program.body.len()),
+            comments: vec![],
+            submodules: vec![],
         };
 
         let mut last_end = parts.preamable.end;
 
         for statement in &self.ast.program.body {
             let span = statement.span();
-            let lines = LineSpan::find(&self.rope, span);
 
             let mut comments_before = self.get_comments(last_end, span.start);
 
@@ -79,22 +95,12 @@ impl<'a> Formatter<'a> {
                 });
             }
 
-            parts.body.extend(comments_before);
+            parts.comments.extend(comments_before);
 
-            match statement {
-                Statement::ImportDeclaration(_) => {}
-                Statement::TSModuleDeclaration(_) => {
-                    parts.body.push(OtherElement {
-                        span,
-                        lines,
-                        is_module: true,
-                    });
-                }
-                _ => parts.body.push(OtherElement {
-                    span,
-                    lines,
-                    is_module: false,
-                }),
+            if let Statement::TSModuleDeclaration(ref decl) = statement {
+                if let Some(element) = ModuleElement::from_ast(decl) {
+                    parts.submodules.push(element);
+                };
             }
 
             last_end = span.end;
@@ -135,31 +141,36 @@ impl<'a> Formatter<'a> {
         };
 
         let mut comments = self.get_comments(self.ast.program.span.start, first.span().start);
-
         let related = self.pull_related_comments(&mut comments, first);
 
-        Span::new(
-            self.ast.program.span.start,
-            related
-                .first()
-                .map(|c| c.span.start)
-                .unwrap_or(first.span().start),
-        )
+        let mut end = related
+            .first()
+            .map(|c| c.span.start)
+            .unwrap_or(first.span().start);
+
+        let end_line = self.rope.byte_to_line(end as usize);
+        let end_line_start = self.rope.line_to_byte(end_line);
+        let end_line_content = &self.src[end_line_start..end as usize];
+        if end_line_content.chars().all(char::is_whitespace) {
+            end = end_line_start as u32;
+        }
+
+        Span::new(self.ast.program.span.start, end)
     }
 
-    fn get_comments(&self, start: u32, end: u32) -> Vec<OtherElement> {
+    fn get_comments(&self, start: u32, end: u32) -> Vec<CommentElement> {
         self.ast
             .trivias
             .comments_range(start..end)
-            .map(|comment| OtherElement::from_comment(&self.rope, comment))
+            .map(|comment| CommentElement::from_ast(&self.rope, comment))
             .collect()
     }
 
     fn pull_related_comments(
         &self,
-        comments: &mut Vec<OtherElement>,
+        comments: &mut Vec<CommentElement>,
         statement: &Statement,
-    ) -> Vec<OtherElement> {
+    ) -> Vec<CommentElement> {
         let mut split_at = comments.len();
         let mut next_lines = LineSpan::find(&self.rope, statement.span());
 
@@ -173,21 +184,5 @@ impl<'a> Formatter<'a> {
         }
 
         comments.split_off(split_at)
-    }
-}
-
-fn remove_span(rope: &mut Rope, span: Span) {
-    // Convert byte index to char index
-    let start = rope.byte_to_char(span.start as usize);
-    let end = rope.byte_to_char(span.end as usize);
-
-    // Remove the statement from the rope
-    rope.remove(start..end);
-
-    // Remove the line end if it has became empty
-    let line = rope.char_to_line(start);
-    let line_content: Cow<str> = rope.line(line).into();
-    if re!(r"^\s*$").is_match(&line_content) {
-        rope.remove(rope.line_to_char(line)..rope.line_to_char(line + 1));
     }
 }

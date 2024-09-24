@@ -8,20 +8,21 @@ use ropey::Rope;
 
 use crate::config::Configuration;
 
+mod editing;
 mod element;
 mod formatter;
 mod line;
 mod matcher;
 mod program;
 
+use editing::*;
 use element::*;
 use formatter::*;
 use line::*;
 use matcher::*;
 use program::*;
 
-pub fn format_source(config: &Configuration, path: &Path, src: &[u8]) -> Result<Vec<u8>> {
-    let src = std::str::from_utf8(src)?;
+pub fn format_source(config: &Configuration, path: &Path, src: &str) -> Result<Rope> {
     let rope = Rope::from_str(src);
 
     let alloc = Allocator::default();
@@ -39,7 +40,17 @@ pub fn format_source(config: &Configuration, path: &Path, src: &[u8]) -> Result<
         ast,
     };
 
-    let output = formatter.format()?;
+    let mut ret = formatter.format()?;
 
-    Ok(output.into_bytes())
+    for span in ret.submodules.into_iter().rev() {
+        let range = span.start as usize..span.end as usize;
+        let output = format_source(config, path, &src[range])?;
+
+        let start = ret.output.byte_to_char(span.start as usize);
+        let end = ret.output.byte_to_char(span.end as usize);
+        ret.output.remove(start..end);
+        ret.output.insert(start, &output.to_string());
+    }
+
+    Ok(ret.output)
 }

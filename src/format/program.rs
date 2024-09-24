@@ -2,11 +2,12 @@ use std::collections::LinkedList;
 
 use oxc::span::Span;
 
-use super::{ImportElement, OtherElement};
+use super::{CommentElement, ImportElement, ModuleElement};
 
 #[derive(Debug)]
 pub struct ProgramParts<'a> {
     pub preamable: Span,
     pub imports: LinkedList<ImportElement<'a>>,
-    pub body: Vec<OtherElement>,
+    pub comments: Vec<CommentElement>,
+    pub submodules: Vec<ModuleElement>,
 }
