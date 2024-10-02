@@ -49,8 +49,7 @@ pub fn remove_span(rope: &mut Rope, span: Span) -> ChangedSpan {
 
     // Remove the entire line if it has became empty
     let line = rope.char_to_line(start);
-    let line_content: Cow<str> = rope.line(line).into();
-    if line_content.chars().all(char::is_whitespace) {
+    if line_is_blank(rope, line) {
         let line_start = rope.line_to_byte(line);
         let line_end = rope.line_to_byte(line + 1);
         removed = ChangedSpan {
@@ -62,4 +61,14 @@ pub fn remove_span(rope: &mut Rope, span: Span) -> ChangedSpan {
     }
 
     removed
+}
+
+pub fn insert(rope: &mut Rope, pos: usize, text: &str) -> i64 {
+    rope.insert(pos, text);
+    text.len() as i64
+}
+
+pub fn line_is_blank(rope: &Rope, line: usize) -> bool {
+    let text: Cow<str> = rope.line(line).into();
+    return text.chars().all(char::is_whitespace);
 }

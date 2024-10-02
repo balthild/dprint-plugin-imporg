@@ -9,8 +9,8 @@ use ropey::Rope;
 use crate::config::Configuration;
 
 use super::{
-    remove_span, ChangedSpan, CommentElement, ImportElement, LineSpan, Matcher, ModuleElement,
-    ProgramParts,
+    insert, line_is_blank, remove_span, ChangedSpan, CommentElement, ImportElement, LineSpan,
+    Matcher, ModuleElement, ProgramParts,
 };
 
 pub struct FormatterReturn {
@@ -27,6 +27,7 @@ pub struct Formatter<'a> {
 
 impl<'a> Formatter<'a> {
     pub fn format(self) -> Result<FormatterReturn> {
+        let indent = self.detect_indent();
         let parts = self.extract_parts();
 
         let mut submodules: Vec<_> = parts.submodules.into_iter().map(|m| m.body).collect();
@@ -49,18 +50,20 @@ impl<'a> Formatter<'a> {
         let pos = self.rope.byte_to_char(parts.preamable.end as usize);
         let mut inserted = ChangedSpan::empty(parts.preamable.end);
         for group in groups.iter().rev() {
-            output.insert(pos, "\n");
-            inserted.len += 1;
+            let line = output.char_to_line(pos);
+            if !line_is_blank(&output, line) {
+                inserted.len += insert(&mut output, pos, "\n");
+            }
 
             for element in group.iter().rev() {
-                output.insert(pos, "\n");
-                output.insert(pos, element.span.source_text(self.src));
-                inserted.len += element.span.size() as i64 + 1;
+                inserted.len += insert(&mut output, pos, "\n");
+                inserted.len += insert(&mut output, pos, element.span.source_text(self.src));
+                inserted.len += insert(&mut output, pos, &indent);
 
                 for comment in element.comments.iter().rev() {
-                    output.insert(pos, "\n");
-                    output.insert(pos, comment.span.source_text(self.src));
-                    inserted.len += comment.span.size() as i64 + 1;
+                    inserted.len += insert(&mut output, pos, "\n");
+                    inserted.len += insert(&mut output, pos, comment.span.source_text(self.src));
+                    inserted.len += insert(&mut output, pos, &indent);
                 }
             }
         }
@@ -70,7 +73,32 @@ impl<'a> Formatter<'a> {
         Ok(FormatterReturn { output, submodules })
     }
 
-    pub fn extract_parts(&'a self) -> ProgramParts<'a> {
+    fn detect_indent(&self) -> String {
+        let mut indent = String::new();
+
+        for line in self.src.lines() {
+            if line.trim().is_empty() {
+                continue;
+            }
+
+            let line_indent: String = line
+                .chars()
+                .take_while(|&c| c == ' ' || c == '\t')
+                .collect();
+
+            if line_indent.is_empty() {
+                return indent;
+            }
+
+            if indent.is_empty() || line_indent.len() < indent.len() {
+                indent = line_indent;
+            }
+        }
+
+        indent
+    }
+
+    fn extract_parts(&'a self) -> ProgramParts<'a> {
         let mut parts = ProgramParts {
             preamable: self.get_preamable_span(),
             imports: LinkedList::new(),

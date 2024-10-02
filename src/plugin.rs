@@ -98,7 +98,7 @@ impl SyncPluginHandler<Configuration> for ImporgHandler {
         };
 
         format_with_host(SyncHostFormatRequest {
-            // Imporg does not format CommonJS files, so this avoids infinite recursion.
+            // Hack: Imporg does not format CommonJS files, so this avoids infinite recursion.
             file_path: Path::new("dummy.cts"),
             file_bytes: output.to_string().as_bytes(),
             range: output_range,
