@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use anyhow::{bail, Ok, Result};
 use oxc::span::Span;
 use ropey::Rope;
@@ -47,14 +45,16 @@ pub fn remove_span(rope: &mut Rope, span: Span) -> ChangedSpan {
     // Remove the statement from the rope
     rope.remove(start..end);
 
-    // Remove the entire line if it has became empty
+    // Remove the entire line if it has became blank
     let line = rope.char_to_line(start);
     if line_is_blank(rope, line) {
         let line_start = rope.line_to_byte(line);
         let line_end = rope.line_to_byte(line + 1);
+        let line_len = line_end - line_start;
+
         removed = ChangedSpan {
             pos: line_start as u32,
-            len: -(span.size() as i64 + line_end as i64 - line_start as i64),
+            len: -(span.size() as i64 + line_len as i64),
         };
 
         rope.remove(rope.line_to_char(line)..rope.line_to_char(line + 1));
@@ -69,6 +69,5 @@ pub fn insert(rope: &mut Rope, pos: usize, text: &str) -> i64 {
 }
 
 pub fn line_is_blank(rope: &Rope, line: usize) -> bool {
-    let text: Cow<str> = rope.line(line).into();
-    return text.chars().all(char::is_whitespace);
+    return rope.line(line).chars().all(char::is_whitespace);
 }
