@@ -25,12 +25,8 @@ impl ChangedSpan {
         let end = self.pos as i64 - self.len;
 
         for span in spans {
-            // crate::utils::debug_print(self);
-            // crate::utils::debug_print(&span);
-
             if start < span.start && end <= span.start as i64 {
                 // the edit is before the span
-                // crate::utils::debug_print("before");
                 span.start = (span.start as i64 + self.len) as u32;
                 span.end = (span.end as i64 + self.len) as u32;
                 continue;
@@ -38,14 +34,12 @@ impl ChangedSpan {
 
             if start >= span.start && end <= span.end as i64 {
                 // The edit is inside the span
-                // crate::utils::debug_print("inside");
                 span.end = (span.end as i64 + self.len) as u32;
                 continue;
             }
 
             if self.pos >= span.end {
                 // The edit is after the span
-                // crate::utils::debug_print("after");
                 continue;
             }
 
