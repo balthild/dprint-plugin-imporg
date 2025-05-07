@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{bail, Result};
 use oxc::allocator::Allocator;
 use oxc::parser::Parser;
-use oxc::span::SourceType;
+use oxc::span::{SourceType, Span};
 use ropey::Rope;
 
 use crate::config::Configuration;
@@ -22,7 +22,12 @@ use line::*;
 use matcher::*;
 use program::*;
 
-pub fn format_source(config: &Configuration, path: &Path, src: &str) -> Result<Rope> {
+pub fn format_source(
+    config: &Configuration,
+    path: &Path,
+    src: &str,
+    inner: Option<Span>,
+) -> Result<Rope> {
     let rope = Rope::from_str(src);
 
     let alloc = Allocator::default();
@@ -53,6 +58,7 @@ pub fn format_source(config: &Configuration, path: &Path, src: &str) -> Result<R
 
             crate::utils::log(&message);
         }
+
         bail!("source code contains errors");
     }
 
@@ -61,16 +67,18 @@ pub fn format_source(config: &Configuration, path: &Path, src: &str) -> Result<R
         src,
         rope,
         ast,
+        inner,
     };
 
     let mut ret = formatter.format()?;
 
-    for span in ret.submodules.into_iter().rev() {
-        let range = span.start as usize..span.end as usize;
-        let output = format_source(config, path, &src[range])?;
+    for module in ret.submodules.into_iter().rev() {
+        let range = module.outer.start as usize..module.outer.end as usize;
+        let src = ret.output.byte_slice(range).to_string();
+        let output = format_source(config, path, &src, Some(module.inner))?;
 
-        let start = ret.output.byte_to_char(span.start as usize);
-        let end = ret.output.byte_to_char(span.end as usize);
+        let start = ret.output.byte_to_char(module.outer.start as usize);
+        let end = ret.output.byte_to_char(module.outer.end as usize);
         ret.output.remove(start..end);
         ret.output.insert(start, &output.to_string());
     }

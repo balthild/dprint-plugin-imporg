@@ -4,7 +4,7 @@ use oxc::span::Span;
 
 use super::{CommentElement, ImportElement, ModuleElement};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProgramParts<'a> {
     pub preamable: Span,
     pub imports: LinkedList<ImportElement<'a>>,

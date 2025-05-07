@@ -1,7 +1,9 @@
 use std::collections::LinkedList;
 
-use anyhow::{Ok, Result};
-use oxc::ast::ast::Statement;
+use anyhow::{bail, Result};
+use oxc::allocator::Vec as OxcVec;
+use oxc::ast::ast::{Statement, TSModuleDeclaration, TSModuleDeclarationBody};
+use oxc::ast::comments_range;
 use oxc::parser::ParserReturn;
 use oxc::span::{GetSpan, Span};
 use ropey::Rope;
@@ -15,7 +17,7 @@ use super::{
 
 pub struct FormatterReturn {
     pub output: Rope,
-    pub submodules: Vec<Span>,
+    pub submodules: Vec<ModuleElement>,
 }
 
 pub struct Formatter<'a> {
@@ -23,24 +25,33 @@ pub struct Formatter<'a> {
     pub src: &'a str,
     pub rope: Rope,
     pub ast: ParserReturn<'a>,
+    pub inner: Option<Span>,
 }
 
 impl<'a> Formatter<'a> {
     pub fn format(self) -> Result<FormatterReturn> {
         let indent = self.detect_indent();
-        let parts = self.extract_parts();
+        let parts = self.extract_parts()?;
 
-        let mut submodules: Vec<_> = parts.submodules.into_iter().map(|m| m.body).collect();
+        let mut submodules = parts.submodules.clone();
         let mut output = self.rope.clone();
 
         // Remove from bottom to top so that indexing will not be a mess
         for element in parts.imports.iter().rev() {
             let removed = remove_span(&mut output, element.span);
-            removed.update_spans(&mut submodules)?;
+            removed.update_spans(
+                submodules
+                    .iter_mut()
+                    .flat_map(|x| [&mut x.inner, &mut x.outer]),
+            )?;
 
             for comment in element.comments.iter().rev() {
                 let removed = remove_span(&mut output, comment.span);
-                removed.update_spans(&mut submodules)?;
+                removed.update_spans(
+                    submodules
+                        .iter_mut()
+                        .flat_map(|x| [&mut x.inner, &mut x.outer]),
+                )?;
             }
         }
 
@@ -68,7 +79,11 @@ impl<'a> Formatter<'a> {
             }
         }
 
-        inserted.update_spans(&mut submodules)?;
+        inserted.update_spans(
+            submodules
+                .iter_mut()
+                .flat_map(|x| [&mut x.inner, &mut x.outer]),
+        )?;
 
         Ok(FormatterReturn { output, submodules })
     }
@@ -98,9 +113,9 @@ impl<'a> Formatter<'a> {
         indent
     }
 
-    fn extract_parts(&'a self) -> ProgramParts<'a> {
+    fn extract_parts(&'a self) -> Result<ProgramParts<'a>> {
         let mut parts = ProgramParts {
-            preamable: self.get_preamable_span(),
+            preamable: self.get_preamable_span()?,
             imports: LinkedList::new(),
             comments: vec![],
             submodules: vec![],
@@ -108,7 +123,7 @@ impl<'a> Formatter<'a> {
 
         let mut last_end = parts.preamable.end;
 
-        for statement in &self.ast.program.body {
+        for statement in self.get_body()? {
             let span = statement.span();
 
             let mut comments_before = self.get_comments(last_end, span.start);
@@ -136,7 +151,7 @@ impl<'a> Formatter<'a> {
             last_end = span.end;
         }
 
-        parts
+        Ok(parts)
     }
 
     fn organize(&self, mut imports: LinkedList<ImportElement<'a>>) -> Vec<Vec<ImportElement<'a>>> {
@@ -165,9 +180,30 @@ impl<'a> Formatter<'a> {
         groups
     }
 
-    fn get_preamable_span(&self) -> Span {
-        let Some(first) = self.ast.program.body.first() else {
-            return self.ast.program.span;
+    fn get_body(&self) -> Result<&OxcVec<'a, Statement<'a>>> {
+        if self.inner.is_none() {
+            return Ok(&self.ast.program.body);
+        }
+
+        fn extract_block<'s, 'a>(
+            decl: &'s TSModuleDeclaration<'a>,
+        ) -> Result<&'s OxcVec<'a, Statement<'a>>> {
+            match decl.body {
+                Some(TSModuleDeclarationBody::TSModuleBlock(ref it)) => Ok(&it.body),
+                Some(TSModuleDeclarationBody::TSModuleDeclaration(ref it)) => extract_block(it),
+                None => bail!("bug: expecting module declaration block"),
+            }
+        }
+
+        match self.ast.program.body.as_slice() {
+            [Statement::TSModuleDeclaration(decl)] => extract_block(decl),
+            _ => bail!("bug: expecting exact one module declaration"),
+        }
+    }
+
+    fn get_preamable_span(&self) -> Result<Span> {
+        let Some(first) = self.get_body()?.first() else {
+            return Ok(self.ast.program.span);
         };
 
         let mut comments = self.get_comments(self.ast.program.span.start, first.span().start);
@@ -187,13 +223,11 @@ impl<'a> Formatter<'a> {
             end = end_line_start as u32;
         }
 
-        Span::new(self.ast.program.span.start, end)
+        Ok(Span::new(self.ast.program.span.start, end))
     }
 
     fn get_comments(&self, start: u32, end: u32) -> Vec<CommentElement> {
-        self.ast
-            .trivias
-            .comments_range(start..end)
+        comments_range(&self.ast.program.comments, start..end)
             .map(|comment| CommentElement::from_ast(&self.rope, comment))
             .collect()
     }

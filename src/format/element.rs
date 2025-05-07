@@ -7,7 +7,7 @@ use ropey::Rope;
 
 use super::LineSpan;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CommentElement {
     pub span: Span,
     pub lines: LineSpan,
@@ -15,13 +15,13 @@ pub struct CommentElement {
 
 impl CommentElement {
     pub fn from_ast(rope: &Rope, comment: &Comment) -> Self {
-        let span = comment.real_span();
+        let span = comment.content_span();
         let lines = LineSpan::find(rope, span);
         Self { span, lines }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImportElement<'a> {
     pub span: Span,
     pub comments: Vec<CommentElement>,
@@ -44,16 +44,18 @@ impl<'a> ImportElement<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ModuleElement {
-    pub body: Span,
+    pub outer: Span,
+    pub inner: Span,
 }
 
 impl ModuleElement {
     pub fn from_ast(decl: &TSModuleDeclaration) -> Option<Self> {
         decl.body.as_ref().and_then(|body| match body {
             TSModuleDeclarationBody::TSModuleBlock(it) => Some(ModuleElement {
-                body: it.span.shrink(1),
+                outer: decl.span,
+                inner: it.span.shrink(1),
             }),
             TSModuleDeclarationBody::TSModuleDeclaration(it) => ModuleElement::from_ast(it),
         })

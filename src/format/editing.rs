@@ -2,6 +2,7 @@ use anyhow::{bail, Ok, Result};
 use oxc::span::Span;
 use ropey::Rope;
 
+#[derive(Debug)]
 pub struct ChangedSpan {
     pub pos: u32,
     pub len: i64,
@@ -19,16 +20,37 @@ impl ChangedSpan {
         }
     }
 
-    pub fn update_spans(&self, spans: &mut [Span]) -> Result<()> {
+    pub fn update_spans<'a>(&self, spans: impl IntoIterator<Item = &'a mut Span>) -> Result<()> {
+        let start = self.pos;
+        let end = self.pos as i64 - self.len;
+
         for span in spans {
-            if self.pos < span.start {
+            // crate::utils::debug_print(self);
+            // crate::utils::debug_print(&span);
+
+            if start < span.start && end <= span.start as i64 {
+                // the edit is before the span
+                // crate::utils::debug_print("before");
                 span.start = (span.start as i64 + self.len) as u32;
                 span.end = (span.end as i64 + self.len) as u32;
-            } else if self.pos >= span.start {
-                // The edit does not affect this span
-            } else {
-                bail!("the formatter went wild");
+                continue;
             }
+
+            if start >= span.start && end <= span.end as i64 {
+                // The edit is inside the span
+                // crate::utils::debug_print("inside");
+                span.end = (span.end as i64 + self.len) as u32;
+                continue;
+            }
+
+            if self.pos >= span.end {
+                // The edit is after the span
+                // crate::utils::debug_print("after");
+                continue;
+            }
+
+            // The edit crosses the boundary of the span
+            bail!("the formatter went wild");
         }
 
         Ok(())

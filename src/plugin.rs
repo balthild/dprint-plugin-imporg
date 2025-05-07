@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::Result;
 use dprint_core::configuration::{
     get_unknown_property_diagnostics, ConfigKeyMap, GlobalConfiguration,
@@ -86,7 +84,7 @@ impl SyncPluginHandler<Configuration> for ImporgHandler {
 
         let source = std::str::from_utf8(source)?;
 
-        let mut output = format_source(request.config, request.file_path, source)?;
+        let mut output = format_source(request.config, request.file_path, source, None)?;
         let mut output_range = None;
 
         if let Some(range) = request.range {
@@ -99,7 +97,7 @@ impl SyncPluginHandler<Configuration> for ImporgHandler {
 
         format_with_host(SyncHostFormatRequest {
             // Hack: Imporg does not format CommonJS files, so this avoids infinite recursion.
-            file_path: Path::new("dummy.cts"),
+            file_path: &request.file_path.join("dummy.cts"),
             file_bytes: output.to_string().as_bytes(),
             range: output_range,
             override_config: &ConfigKeyMap::from([(
