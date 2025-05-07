@@ -53,11 +53,14 @@ pub struct ModuleElement {
 impl ModuleElement {
     pub fn from_ast(decl: &TSModuleDeclaration) -> Option<Self> {
         decl.body.as_ref().and_then(|body| match body {
-            TSModuleDeclarationBody::TSModuleBlock(it) => Some(ModuleElement {
+            TSModuleDeclarationBody::TSModuleBlock(it) => Some(Self {
                 outer: decl.span,
                 inner: it.span.shrink(1),
             }),
-            TSModuleDeclarationBody::TSModuleDeclaration(it) => ModuleElement::from_ast(it),
+            TSModuleDeclarationBody::TSModuleDeclaration(it) => Some(Self {
+                outer: decl.span,
+                inner: ModuleElement::from_ast(it)?.inner,
+            }),
         })
     }
 }
