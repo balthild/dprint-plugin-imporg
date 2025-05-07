@@ -69,5 +69,5 @@ pub fn insert(rope: &mut Rope, pos: usize, text: &str) -> i64 {
 }
 
 pub fn line_is_blank(rope: &Rope, line: usize) -> bool {
-    return rope.line(line).chars().all(char::is_whitespace);
+    rope.line(line).chars().all(char::is_whitespace)
 }

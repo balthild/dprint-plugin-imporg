@@ -12,7 +12,6 @@ pub fn debug_print<T: Debug>(value: T) -> T {
 }
 
 #[allow(unused)]
-#[deprecated = "for debug use only"]
 pub fn log(message: &str) {
     let _ = WasiPrintFd(1).write_all(message.as_bytes());
 }
