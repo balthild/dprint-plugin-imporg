@@ -22,17 +22,18 @@ impl ChangedSpan {
 
     pub fn update_spans<'a>(&self, spans: impl IntoIterator<Item = &'a mut Span>) -> Result<()> {
         let start = self.pos;
-        let end = self.pos as i64 - self.len;
+        // If the change is insertion, `end` will be equal to `start`
+        let end = self.pos + self.len.min(0).unsigned_abs() as u32;
 
         for span in spans {
-            if start < span.start && end <= span.start as i64 {
+            if start <= span.start && end <= span.start {
                 // the edit is before the span
                 span.start = (span.start as i64 + self.len) as u32;
                 span.end = (span.end as i64 + self.len) as u32;
                 continue;
             }
 
-            if start >= span.start && end <= span.end as i64 {
+            if start > span.start && end <= span.end {
                 // The edit is inside the span
                 span.end = (span.end as i64 + self.len) as u32;
                 continue;
